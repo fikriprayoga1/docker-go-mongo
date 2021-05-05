@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os"
 	"net/http"
 	"strings"
 	"time"
@@ -44,7 +45,8 @@ func initServerListener() {
 
 func initDatabase() {
 	log.Println("Init database started")
-	client, err0 := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	dbHost := os.Getenv("MONGO_HOST")
+	client, err0 := mongo.NewClient(options.Client().ApplyURI("mongodb://" + dbHost + ":27017"))
 	if err0 != nil {
 		log.Fatal(err0)
 	}
@@ -75,12 +77,12 @@ func initSerialNumber() {
 }
 
 func insertSerialNumber() {
-	sn1, _ := ioutil.ReadFile("/usr/local/go/src/server/serial-number-series-1.txt")
-	sn2, _ := ioutil.ReadFile("/usr/local/go/src/server/serial-number-series-2.txt")
-	sn3, _ := ioutil.ReadFile("/usr/local/go/src/server/serial-number-series-3.txt")
-	sn4, _ := ioutil.ReadFile("/usr/local/go/src/server/serial-number-series-4.txt")
-	sn5, _ := ioutil.ReadFile("/usr/local/go/src/server/serial-number-series-5.txt")
-	sn6, _ := ioutil.ReadFile("/usr/local/go/src/server/serial-number-series-6.txt")
+	sn1, _ := ioutil.ReadFile("serial-number-series-1.txt")
+	sn2, _ := ioutil.ReadFile("serial-number-series-2.txt")
+	sn3, _ := ioutil.ReadFile("serial-number-series-3.txt")
+	sn4, _ := ioutil.ReadFile("serial-number-series-4.txt")
+	sn5, _ := ioutil.ReadFile("serial-number-series-5.txt")
+	sn6, _ := ioutil.ReadFile("serial-number-series-6.txt")
 
 	snList1 := strings.Split(string(sn1), "\n")
 	snList2 := strings.Split(string(sn2), "\n")
