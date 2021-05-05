@@ -1,5 +1,5 @@
 # Documentation
-This is repository of fikriprayoga1/go-mongo in docker hub. The function if this repository is create image of fikriprayoga1/go-mongo in docker hub, so you can learn how to create image and run the docker system image easily. This repository is part of https://hub.docker.com/repository/docker/fikriprayoga1/go-mongo project
+This is repository of fikriprayoga1/go-mongo in docker hub. The function of this repository is create image of fikriprayoga1/go-mongo in docker hub, so you can learn how to create image and run the docker system image easily. This repository is part of https://hub.docker.com/repository/docker/fikriprayoga1/go-mongo project
 
 ## Best Practice
 Use this command in your CMD(Windows) or Terminal(Mac or Linux). Before start the command, you must be in the directory of the folder you pulled.
