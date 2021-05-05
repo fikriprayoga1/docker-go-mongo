@@ -1,0 +1,26 @@
+version: "3.8"
+
+services: 
+    mongo:
+        container_name: mongo
+        image: mongo
+        ports: 
+            - 27017:27017
+        networks: 
+            - go-mongo-network
+    go-mongo:
+        container_name: go-mongo
+        image: fikriprayoga1/go-mongo
+        ports: 
+            - 8080:8080
+        networks: 
+            - go-mongo-network
+        depends_on: 
+            - mongo
+        environment: 
+            - MONGO_HOST=mongo
+            - GO111MODULE=auto
+
+networks: 
+    go-mongo-network:
+        name: go-mongo-network
