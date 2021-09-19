@@ -10,7 +10,7 @@ services:
             - go-mongo-network
     go-mongo:
         container_name: go-mongo
-        image: fikriprayoga1/go-mongo
+        image: go-mongo:1.0
         ports: 
             - 8080:8080
         networks: 
@@ -19,7 +19,6 @@ services:
             - mongo
         environment: 
             - MONGO_HOST=mongo
-            - GO111MODULE=auto
 
 networks: 
     go-mongo-network:
