@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -23,34 +25,55 @@ const databaseName string = "example"
 
 const collectionName string = "profile"
 
+const baseUrl string = "localhost"
+
+const port string = "8080"
+
 // Object Block
-type ProfileDetail struct {
-	ProfileImage string `bson:"ProfileImage,omitempty" json:"ProfileImage,omitempty"`
-	Name         string `bson:"Name,omitempty" json:"Name,omitempty"`
-	Email        string `bson:"Email,omitempty" json:"Email,omitempty"`
-	Password     string `bson:"Password,omitempty" json:"Password,omitempty"`
-}
-
-type CreateResponse struct {
-	ResponseMessage string `json:"ResponseMessage"`
-	Id              string `json:"_id"`
-}
-
-type ProfileDetailComplete struct {
-	Id           primitive.ObjectID `bson:"_id" json:"_id"`
+// Database Model
+type ModelProfile struct {
+	Id           primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	ProfileImage string             `bson:"ProfileImage,omitempty" json:"ProfileImage,omitempty"`
 	Name         string             `bson:"Name,omitempty" json:"Name,omitempty"`
 	Email        string             `bson:"Email,omitempty" json:"Email,omitempty"`
 	Password     string             `bson:"Password,omitempty" json:"Password,omitempty"`
 }
 
-type ReadResponse struct {
-	ResponseMessage string                 `json:"ResponseMessage,omitempty"`
-	ProfileDetail   *ProfileDetailComplete `json:"ProfileDetail,omitempty"`
+// Request Model
+type ModelRequest struct {
+	Name     string `json:"Name,omitempty"`
+	Email    string `json:"Email,omitempty"`
+	Password string `json:"Password,omitempty"`
 }
 
-type FailedResponse struct {
-	ResponseMessage string `default:"Program Error"`
+type ModelRequest2 struct {
+	Id string `json:"Id"`
+}
+
+type ModelRequest3 struct {
+	Id       string `json:"Id"`
+	Name     string `json:"Name,omitempty"`
+	Email    string `json:"Email,omitempty"`
+	Password string `json:"Password,omitempty"`
+}
+
+// Response Model
+type ModelResponse struct {
+	ResponseMessage string `json:"ResponseMessage"`
+	Id              string `json:"Id"`
+}
+
+type ModelResponse2 struct {
+	ResponseMessage string `json:"ResponseMessage"`
+	Id              string `json:"Id"`
+	ProfileImage    string `json:"ProfileImage,omitempty"`
+	Name            string `json:"Name,omitempty"`
+	Email           string `json:"Email,omitempty"`
+	Password        string `json:"Password,omitempty"`
+}
+
+type ModelResponse3 struct {
+	ResponseMessage string `json:"ResponseMessage"`
 }
 
 func main() {
@@ -77,9 +100,9 @@ func initDatabase() {
 	}
 
 	// Ping the primary
-	err1 := client.Ping(ctx, readpref.Primary())
-	if err1 != nil {
-		panic(err1)
+	err2 := client.Ping(ctx, readpref.Primary())
+	if err2 != nil {
+		panic(err2)
 	}
 
 	fmt.Printf("Successfully connected and pinged.\n")
@@ -91,45 +114,40 @@ func initServer() {
 
 	http.HandleFunc("/profile/create", createProfile)
 	http.HandleFunc("/profile/read", readProfile)
+	http.HandleFunc("/profile/update/image", updateProfileImage)
 	http.HandleFunc("/profile/update", updateProfile)
 	http.HandleFunc("/profile/delete", deleteProfile)
+	http.HandleFunc("/image-profile", handleRequest)
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(baseUrl+":"+port, nil))
 }
 
 func createProfile(w http.ResponseWriter, r *http.Request) {
 	// Parse body
-	err := r.ParseMultipartForm(512000)
+	var modelRequest ModelRequest
+	err := json.NewDecoder(r.Body).Decode(&modelRequest)
 	if err != nil {
-		errorHandler(err, w, FailedResponse{ResponseMessage: "Program Error"})
-		return
+		panic(err)
 	}
 
-	profileImage := r.FormValue("ProfileImage")
-	name := r.FormValue("Name")
-	email := r.FormValue("Email")
-	password := r.FormValue("Password")
-
-	fmt.Printf("profileImage : %v\n", profileImage)
-	fmt.Printf("name : %v\n", name)
-	fmt.Printf("email : %v\n", email)
-	fmt.Printf("password : %v\n", password)
+	fmt.Printf("name : %v\n", modelRequest.Name)
+	fmt.Printf("email : %v\n", modelRequest.Email)
+	fmt.Printf("password : %v\n", modelRequest.Password)
 
 	fmt.Printf("Request insert document\n")
 
 	// Create structure
-	profileData := ProfileDetail{
-		ProfileImage: profileImage,
-		Name:         name,
-		Email:        email,
-		Password:     password,
+	modelProfile := ModelProfile{
+		Name:     modelRequest.Name,
+		Email:    modelRequest.Email,
+		Password: modelRequest.Password,
 	}
 
 	// Insert to database
 	coll := client.Database(databaseName).Collection(collectionName)
-	res, err1 := coll.InsertOne(context.TODO(), profileData)
-	if err1 != nil {
-		errorHandler(err1, w, FailedResponse{ResponseMessage: "Program Error"})
+	res, err2 := coll.InsertOne(context.TODO(), modelProfile)
+	if err2 != nil {
+		errorHandler(err2, w, "Program Error")
 		return
 	}
 	insertId := res.InsertedID.(primitive.ObjectID).Hex()
@@ -137,13 +155,13 @@ func createProfile(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Document inserted with id : %v\n\n", insertId)
 
 	// Create response
-	responseData := CreateResponse{
+	modelResponse := ModelResponse{
 		ResponseMessage: "Profile data inserted to database",
 		Id:              insertId,
 	}
-	responseJson, err2 := json.Marshal(responseData)
-	if err2 != nil {
-		errorHandler(err2, w, FailedResponse{ResponseMessage: "Program Error"})
+	responseJson, err3 := json.Marshal(modelResponse)
+	if err3 != nil {
+		errorHandler(err3, w, "Program Error")
 		return
 	}
 
@@ -153,35 +171,31 @@ func createProfile(w http.ResponseWriter, r *http.Request) {
 
 func readProfile(w http.ResponseWriter, r *http.Request) {
 	// Parse body
-	err := r.ParseMultipartForm(512000)
-	if err != nil {
-		errorHandler(err, w, FailedResponse{ResponseMessage: "Program Error"})
-		return
-	}
-
-	id := r.FormValue("Id")
+	queryParameter := r.URL.Query()
+	id := queryParameter["Id"][0]
 
 	fmt.Printf("Request read document by id : %v\n", id)
 
 	// begin find
 	myCollection := client.Database(databaseName).Collection(collectionName)
-	mId, _ := primitive.ObjectIDFromHex(id)
+	mId, err2 := primitive.ObjectIDFromHex(id)
+	if err2 != nil {
+		errorHandler(err2, w, "Program Error")
+		return
+	}
 	filter := bson.D{{Key: "_id", Value: mId}}
 
-	// Find the document for which the _id field matches id.
-	// Specify the Sort option to sort the documents by age.
-	// The first document in the sorted order will be returned.
-	var profileDetailComplete ProfileDetailComplete
-	err1 := myCollection.FindOne(
+	var modelProfile ModelProfile
+	err3 := myCollection.FindOne(
 		context.TODO(),
 		filter,
-	).Decode(&profileDetailComplete)
-	if err1 != nil {
-		if err1 == mongo.ErrNoDocuments {
-			errorHandler(err1, w, FailedResponse{ResponseMessage: "Can't find your data"})
+	).Decode(&modelProfile)
+	if err3 != nil {
+		if err3 == mongo.ErrNoDocuments {
+			errorHandler(err3, w, "Can't find your data")
 			return
 		}
-		errorHandler(err1, w, FailedResponse{ResponseMessage: "Program Error"})
+		errorHandler(err3, w, "Program Error")
 		return
 	}
 	// end find
@@ -189,13 +203,18 @@ func readProfile(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Document finded\n\n")
 
 	// Create response
-	responseData := ReadResponse{
-		ResponseMessage: "Profile data inserted to database",
-		ProfileDetail:   &profileDetailComplete,
+	modelResponse2 := ModelResponse2{
+		ResponseMessage: "Profile data available in database",
+		Id:              modelProfile.Id.Hex(),
+		ProfileImage:    modelProfile.ProfileImage,
+		Name:            modelProfile.Name,
+		Email:           modelProfile.Email,
+		Password:        modelProfile.Password,
 	}
-	responseJson, err2 := json.Marshal(responseData)
-	if err2 != nil {
-		errorHandler(err2, w, FailedResponse{ResponseMessage: "Program Error"})
+
+	responseJson, err4 := json.Marshal(modelResponse2)
+	if err4 != nil {
+		errorHandler(err4, w, "Program Error")
 		return
 	}
 
@@ -204,69 +223,134 @@ func readProfile(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func updateProfile(w http.ResponseWriter, r *http.Request) {
+func updateProfileImage(w http.ResponseWriter, r *http.Request) {
 	// Parse body
-	err := r.ParseMultipartForm(512000)
+	r.ParseMultipartForm(512000)
+
+	id := r.FormValue("Id")
+	mId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		errorHandler(err, w, FailedResponse{ResponseMessage: "Program Error"})
+		errorHandler(err, w, "Program Error")
 		return
 	}
 
-	id := r.FormValue("Id")
-	profileImage := r.FormValue("ProfileImage")
-	name := r.FormValue("Name")
-	email := r.FormValue("Email")
-	password := r.FormValue("Password")
-
-	fmt.Printf("profileImage : %v\n", profileImage)
-	fmt.Printf("name : %v\n", name)
-	fmt.Printf("email : %v\n", email)
-	fmt.Printf("password : %v\n", password)
-
-	fmt.Printf("Request update document by id : %v\n", id)
-
-	podcastsCollection := client.Database(databaseName).Collection(collectionName)
-	mId, _ := primitive.ObjectIDFromHex(id)
-
 	// Create structure
-	profileData := ProfileDetail{
-		ProfileImage: profileImage,
-		Name:         name,
-		Email:        email,
-		Password:     password,
+	modelProfile := ModelProfile{
+		ProfileImage: baseUrl + ":" + port + "/image-profile?Id=" + id,
+	}
+	update := bson.D{{Key: "$set", Value: modelProfile}}
+	myCollection := client.Database(databaseName).Collection(collectionName)
+
+	var modelProfileSample ModelProfile
+	filter := bson.D{{Key: "_id", Value: mId}}
+	err2 := myCollection.FindOne(
+		context.TODO(),
+		filter,
+	).Decode(&modelProfileSample)
+	if err2 != nil {
+		if err2 == mongo.ErrNoDocuments {
+			errorHandler(err2, w, "Can't find your data")
+			return
+		}
+		errorHandler(err2, w, "Program Error")
+		return
 	}
 
-	filter := bson.D{{Key: "_id", Value: mId}}
+	_, err3 := myCollection.UpdateByID(context.TODO(), mId, update)
+	if err3 != nil {
+		errorHandler(err3, w, "Program Error")
+		return
+	}
 
-	result, err1 := podcastsCollection.ReplaceOne(context.TODO(), filter, profileData)
+	fmt.Printf("Document updated \n\n")
 
-	if err1 != nil {
-		errorHandler(err1, w, FailedResponse{ResponseMessage: "Program Error"})
+	file, handler, err4 := r.FormFile("ImageProfile")
+	if err4 != nil {
+		errorHandler(err4, w, "Program Error")
+		return
+	}
+
+	fmt.Printf("Request update image profile by id : %v\n", id)
+
+	defer file.Close()
+	fmt.Printf("Uploaded File: %+v\n", handler.Filename)
+	fmt.Printf("File Size: %+v\n", handler.Size)
+	fmt.Printf("MIME Header: %+v\n", handler.Header)
+
+	// Create file
+	dst, err5 := os.Create("image-profile/" + id + ".jpg")
+	if err5 != nil {
+		errorHandler(err5, w, "Program Error")
+		return
+	}
+
+	// Copy the uploaded file to the created file on the filesystem
+	if _, err6 := io.Copy(dst, file); err6 != nil {
+		errorHandler(err6, w, "Program Error")
+		return
+	}
+
+	// Create response
+	modelResponse3 := ModelResponse3{
+		ResponseMessage: "Image profile updated",
+	}
+	responseJson, err7 := json.Marshal(modelResponse3)
+	if err7 != nil {
+		errorHandler(err7, w, "Program Error")
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	w.Write(responseJson)
+}
+
+func updateProfile(w http.ResponseWriter, r *http.Request) {
+	// Parse body
+	var modelRequest3 ModelRequest3
+	err := json.NewDecoder(r.Body).Decode(&modelRequest3)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("modelRequest3 : %v\n", modelRequest3)
+	mId, err2 := primitive.ObjectIDFromHex(modelRequest3.Id)
+	if err2 != nil {
+		errorHandler(err2, w, "Program Error")
+		return
+	}
+	fmt.Printf("Request update document by id : %v\n", modelRequest3.Id)
+
+	podcastsCollection := client.Database(databaseName).Collection(collectionName)
+
+	// Create structure
+	modelProfile := ModelProfile{
+		Name:     modelRequest3.Name,
+		Email:    modelRequest3.Email,
+		Password: modelRequest3.Password,
+	}
+	update := bson.D{{Key: "$set", Value: modelProfile}}
+
+	result, err2 := podcastsCollection.UpdateByID(context.TODO(), mId, update)
+	if err2 != nil {
+		errorHandler(err2, w, "Program Error")
 		return
 	}
 
 	if result.ModifiedCount == 0 {
-		errorHandler(nil, w, FailedResponse{ResponseMessage: "Can't find your data"})
+		errorHandler(nil, w, "Can't find your data")
 		return
 	}
 
 	fmt.Printf("Document updated \n\n")
 
 	// Create response
-	profileDetailComplete := ProfileDetailComplete{
-		Id:           mId,
-		ProfileImage: profileImage,
-		Name:         name,
-		Email:        email,
-		Password:     password,
-	}
-	responseData := ReadResponse{
+	modelResponse3 := ModelResponse3{
 		ResponseMessage: "Profile data updated",
-		ProfileDetail:   &profileDetailComplete,
 	}
-	responseJson, err2 := json.Marshal(responseData)
-	if err2 != nil {
-		errorHandler(err2, w, FailedResponse{ResponseMessage: "Program Error"})
+
+	responseJson, err3 := json.Marshal(modelResponse3)
+	if err3 != nil {
+		errorHandler(err3, w, "Program Error")
 		return
 	}
 
@@ -276,41 +360,38 @@ func updateProfile(w http.ResponseWriter, r *http.Request) {
 
 func deleteProfile(w http.ResponseWriter, r *http.Request) {
 	// Parse body
-	err := r.ParseMultipartForm(512000)
+	var modelRequest2 ModelRequest2
+	err := json.NewDecoder(r.Body).Decode(&modelRequest2)
 	if err != nil {
-		errorHandler(err, w, FailedResponse{ResponseMessage: "Program Error"})
-		return
+		panic(err)
 	}
 
-	id := r.FormValue("Id")
-
-	fmt.Printf("Request delete document by id : %v\n", id)
+	fmt.Printf("Request delete document by id : %v\n", modelRequest2.Id)
 
 	coll := client.Database(databaseName).Collection(collectionName)
-	mId, _ := primitive.ObjectIDFromHex(id)
+	mId, _ := primitive.ObjectIDFromHex(modelRequest2.Id)
 
 	filter := bson.D{{Key: "_id", Value: mId}}
-	result, err1 := coll.DeleteOne(context.TODO(), filter)
-	if err1 != nil {
-		errorHandler(err1, w, FailedResponse{ResponseMessage: "Program Error"})
+	result, err2 := coll.DeleteOne(context.TODO(), filter)
+	if err2 != nil {
+		errorHandler(err2, w, "Program Error")
 		return
 	}
 
 	if result.DeletedCount == 0 {
-		errorHandler(nil, w, FailedResponse{ResponseMessage: "Can't find your data"})
+		errorHandler(nil, w, "Can't find your data")
 		return
 	}
 
 	fmt.Printf("Document deleted\n\n")
 
 	// Create response
-	responseData := CreateResponse{
+	modelResponse3 := ModelResponse3{
 		ResponseMessage: "Profile data deleted",
-		Id:              id,
 	}
-	responseJson, err2 := json.Marshal(responseData)
-	if err2 != nil {
-		errorHandler(err2, w, FailedResponse{ResponseMessage: "Program Error"})
+	responseJson, err3 := json.Marshal(modelResponse3)
+	if err3 != nil {
+		errorHandler(err3, w, "Program Error")
 		return
 	}
 
@@ -318,16 +399,30 @@ func deleteProfile(w http.ResponseWriter, r *http.Request) {
 	w.Write(responseJson)
 }
 
-func errorHandler(err error, w http.ResponseWriter, message FailedResponse) {
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+	queryParameter := r.URL.Query()
+	id := queryParameter["Id"][0]
+
+	fileBytes, err := ioutil.ReadFile("image-profile/" + id + ".jpg")
+	if err != nil {
+		panic(err)
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Write(fileBytes)
+}
+
+func errorHandler(err error, w http.ResponseWriter, responseMessage string) {
 	fmt.Printf("Proccess failed\n\n")
-	responseJson, err1 := json.Marshal(message)
-	if err1 != nil {
-		fmt.Println(err1)
+	fmt.Println(err)
+	modelResponse3 := ModelResponse3{ResponseMessage: responseMessage}
+	responseJson, err2 := json.Marshal(modelResponse3)
+	if err2 != nil {
+		fmt.Println(err2)
 		return
 	}
 
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Write(responseJson)
-	fmt.Println(err)
 
 }
