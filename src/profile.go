@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -24,8 +25,6 @@ var client *mongo.Client
 const databaseName string = "example"
 
 const collectionName string = "profile"
-
-const baseUrl string = "localhost"
 
 const port string = "8080"
 
@@ -117,9 +116,9 @@ func initServer() {
 	http.HandleFunc("/profile/update/image", updateProfileImage)
 	http.HandleFunc("/profile/update", updateProfile)
 	http.HandleFunc("/profile/delete", deleteProfile)
-	http.HandleFunc("/image-profile", handleRequest)
+	http.HandleFunc("/image-profile", imageprofile)
 
-	log.Fatal(http.ListenAndServe(baseUrl+":"+port, nil))
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
 func createProfile(w http.ResponseWriter, r *http.Request) {
@@ -235,9 +234,9 @@ func updateProfileImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, handler, err4 := r.FormFile("ImageProfile")
-	if err4 != nil {
-		errorHandler(err4, w, "Program Error")
+	file, handler, err2 := r.FormFile("ImageProfile")
+	if err2 != nil {
+		errorHandler(err2, w, "Program Error")
 		return
 	}
 
@@ -246,51 +245,61 @@ func updateProfileImage(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("File Size: %+v\n", handler.Size)
 	fmt.Printf("MIME Header: %+v\n", handler.Header)
 
-	if(handler.Size > 512000) {
+	if handler.Size > 512000 {
 		errorHandler(nil, w, "Your file size above 512 Kb")
 		return
 	}
 
 	// Create structure
 	modelProfile := ModelProfile{
-		ProfileImage: baseUrl + ":" + port + "/image-profile?Id=" + id,
+		ProfileImage: "localhost" + ":" + port + "/image-profile?Id=" + id,
 	}
 	update := bson.D{{Key: "$set", Value: modelProfile}}
 	myCollection := client.Database(databaseName).Collection(collectionName)
 
 	var modelProfileSample ModelProfile
 	filter := bson.D{{Key: "_id", Value: mId}}
-	err2 := myCollection.FindOne(
+	err3 := myCollection.FindOne(
 		context.TODO(),
 		filter,
 	).Decode(&modelProfileSample)
-	if err2 != nil {
-		if err2 == mongo.ErrNoDocuments {
-			errorHandler(err2, w, "Can't find your data")
+	if err3 != nil {
+		if err3 == mongo.ErrNoDocuments {
+			errorHandler(err3, w, "Can't find your data")
 			return
 		}
-		errorHandler(err2, w, "Program Error")
+		errorHandler(err3, w, "Program Error")
 		return
 	}
 
-	_, err3 := myCollection.UpdateByID(context.TODO(), mId, update)
-	if err3 != nil {
-		errorHandler(err3, w, "Program Error")
+	_, err4 := myCollection.UpdateByID(context.TODO(), mId, update)
+	if err4 != nil {
+		errorHandler(err4, w, "Program Error")
 		return
 	}
 
 	fmt.Printf("Document updated \n\n")
 
 	// Create file
-	dst, err5 := os.Create("image-profile/" + id + ".jpg")
+	fileExtension := filepath.Ext(handler.Filename)
+	if fileExtension != ".jpg" {
+		errorHandler(nil, w, "Your file extension is not .jpg")
+		return
+	}
+	err5 := os.Mkdir("image-profile", 0755)
+
 	if err5 != nil {
-		errorHandler(err5, w, "Program Error")
+		log.Fatal(err5)
+	}
+	dst, err6 := os.Create("image-profile/" + id + ".jpg")
+	if err6 != nil {
+		errorHandler(err6, w, "Program Error")
 		return
 	}
 
 	// Copy the uploaded file to the created file on the filesystem
-	if _, err6 := io.Copy(dst, file); err6 != nil {
-		errorHandler(err6, w, "Program Error")
+	if _, err7 := io.Copy(dst, file); err7 != nil {
+		errorHandler(err7, w, "Program Error")
 		return
 	}
 
@@ -298,9 +307,9 @@ func updateProfileImage(w http.ResponseWriter, r *http.Request) {
 	modelResponse3 := ModelResponse3{
 		ResponseMessage: "Image profile updated",
 	}
-	responseJson, err7 := json.Marshal(modelResponse3)
-	if err7 != nil {
-		errorHandler(err7, w, "Program Error")
+	responseJson, err8 := json.Marshal(modelResponse3)
+	if err8 != nil {
+		errorHandler(err8, w, "Program Error")
 		return
 	}
 
@@ -403,13 +412,35 @@ func deleteProfile(w http.ResponseWriter, r *http.Request) {
 	w.Write(responseJson)
 }
 
-func handleRequest(w http.ResponseWriter, r *http.Request) {
+func imageprofile(w http.ResponseWriter, r *http.Request) {
 	queryParameter := r.URL.Query()
 	id := queryParameter["Id"][0]
-
-	fileBytes, err := ioutil.ReadFile("image-profile/" + id + ".jpg")
+	mId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		panic(err)
+		errorHandler(err, w, "Program Error")
+		return
+	}
+
+	var modelProfileSample ModelProfile
+	filter := bson.D{{Key: "_id", Value: mId}}
+	myCollection := client.Database(databaseName).Collection(collectionName)
+	err2 := myCollection.FindOne(
+		context.TODO(),
+		filter,
+	).Decode(&modelProfileSample)
+	if err2 != nil {
+		if err2 == mongo.ErrNoDocuments {
+			errorHandler(err2, w, "Can't find your data")
+			return
+		}
+		errorHandler(err2, w, "Program Error")
+		return
+	}
+
+	fileBytes, err3 := ioutil.ReadFile("image-profile/" + id + ".jpg")
+	if err3 != nil {
+		errorHandler(err3, w, "Can't find your data")
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/octet-stream")
