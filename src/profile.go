@@ -228,9 +228,26 @@ func updateProfileImage(w http.ResponseWriter, r *http.Request) {
 	r.ParseMultipartForm(512000)
 
 	id := r.FormValue("Id")
+	fmt.Printf("Request update image profile by id : %v\n", id)
 	mId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		errorHandler(err, w, "Program Error")
+		return
+	}
+
+	file, handler, err4 := r.FormFile("ImageProfile")
+	if err4 != nil {
+		errorHandler(err4, w, "Program Error")
+		return
+	}
+
+	defer file.Close()
+	fmt.Printf("Uploaded File: %+v\n", handler.Filename)
+	fmt.Printf("File Size: %+v\n", handler.Size)
+	fmt.Printf("MIME Header: %+v\n", handler.Header)
+
+	if(handler.Size > 512000) {
+		errorHandler(nil, w, "Your file size above 512 Kb")
 		return
 	}
 
@@ -263,19 +280,6 @@ func updateProfileImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Printf("Document updated \n\n")
-
-	file, handler, err4 := r.FormFile("ImageProfile")
-	if err4 != nil {
-		errorHandler(err4, w, "Program Error")
-		return
-	}
-
-	fmt.Printf("Request update image profile by id : %v\n", id)
-
-	defer file.Close()
-	fmt.Printf("Uploaded File: %+v\n", handler.Filename)
-	fmt.Printf("File Size: %+v\n", handler.Size)
-	fmt.Printf("MIME Header: %+v\n", handler.Header)
 
 	// Create file
 	dst, err5 := os.Create("image-profile/" + id + ".jpg")

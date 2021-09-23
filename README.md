@@ -16,7 +16,7 @@ docker pull mongo
 
 ### Step 3. Run docker compose
 ```
-docker-compose up -d
+docker-compose up
 ```
 
 ### Step 4. Test in Postman app

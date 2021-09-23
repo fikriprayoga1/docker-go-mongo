@@ -1,0 +1,177 @@
+{
+	"info": {
+		"_postman_id": "1310a1c7-c996-4b2a-9b67-61362e082bd0",
+		"name": "Go Mongo",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Create Profile",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"Name\":\"Budi\",\n    \"Email\":\"budi@jos.com\",\n    \"Password\":\"ManjainAja\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/profile/create",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"profile",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Read Profile",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/profile/read?Id=614c96862b25bdad816b0036",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"profile",
+						"read"
+					],
+					"query": [
+						{
+							"key": "Id",
+							"value": "614c96862b25bdad816b0036"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Profile",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"Id\":\"614c96862b25bdad816b0036\",\r\n    \"Name\": \"Joko\",\r\n    \"Email\": \"Joko@manja.com\",\r\n    \"Password\": \"mainjainaku\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/profile/update",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"profile",
+						"update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Image Profile",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "Id",
+							"value": "614c96862b25bdad816b0036",
+							"type": "text"
+						},
+						{
+							"key": "ImageProfile",
+							"type": "file",
+							"src": "/Users/fikriprayoga1/Desktop/jpg_test.jpg"
+						}
+					]
+				},
+				"url": {
+					"raw": "localhost:8080/profile/update/image",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"profile",
+						"update",
+						"image"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Read Image Profile",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/image-profile?Id=614c96862b25bdad816b0036",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"image-profile"
+					],
+					"query": [
+						{
+							"key": "Id",
+							"value": "614c96862b25bdad816b0036"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Profile",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"Id\": \"614c96862b25bdad816b0036\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/profile/delete",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"profile",
+						"delete"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
